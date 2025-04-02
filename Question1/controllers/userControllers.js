@@ -4,31 +4,27 @@ import dotenv from "dotenv";
 dotenv.config(); // Load environment variables
 
 const BASE_URL = "http://20.244.56.144/evaluation-service";
-const ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNYXBDbGFpbXMiOnsiZXhwIjoxNzQzNjA5NzI0LCJpYXQiOjE3NDM2MDk0MjQsImlzcyI6IkFmZm9yZG1lZCIsImp0aSI6IjQzNzgwNGIyLWI1MzktNGVhNi1iYmRhLWUxY2M3ODkzMjcyZSIsInN1YiI6IjIyMDUyMDMzQGtpaXQuYWMuaW4ifSwiZW1haWwiOiIyMjA1MjAzM0BraWl0LmFjLmluIiwibmFtZSI6Imx1Y2t5IGt1bWFyIiwicm9sbE5vIjoiMjIwNTIwMzMiLCJhY2Nlc3NDb2RlIjoibndwd3JaIiwiY2xpZW50SUQiOiI0Mzc4MDRiMi1iNTM5LTRlYTYtYmJkYS1lMWNjNzg5MzI3MmUiLCJjbGllbnRTZWNyZXQiOiJXYmZaRnh5Z3FVWEdTVU52In0.R8BYZ_eQCE0Hg0oNcMcFWItAFky83wuRwMI8b2uUVmg";
-
-export const getTopUsers = async (req, res) => {
+const ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNYXBDbGFpbXMiOnsiZXhwIjoxNzQzNjEwODk0LCJpYXQiOjE3NDM2MTA1OTQsImlzcyI6IkFmZm9yZG1lZCIsImp0aSI6IjQzNzgwNGIyLWI1MzktNGVhNi1iYmRhLWUxY2M3ODkzMjcyZSIsInN1YiI6IjIyMDUyMDMzQGtpaXQuYWMuaW4ifSwiZW1haWwiOiIyMjA1MjAzM0BraWl0LmFjLmluIiwibmFtZSI6Imx1Y2t5IGt1bWFyIiwicm9sbE5vIjoiMjIwNTIwMzMiLCJhY2Nlc3NDb2RlIjoibndwd3JaIiwiY2xpZW50SUQiOiI0Mzc4MDRiMi1iNTM5LTRlYTYtYmJkYS1lMWNjNzg5MzI3MmUiLCJjbGllbnRTZWNyZXQiOiJXYmZaRnh5Z3FVWEdTVU52In0.qFvbaoshxqO8jjOStdMl6Ne6VGdqNiPL7ipasc17kOE"
+export const  getTopUsers = async (req, res) => {
     try {
-        if (!ACCESS_TOKEN) {
-            throw new Error("Access token is missing. Check environment variables.");
-        }
-
-        // Fetch all users
+    
         const response = await axios.get(`${BASE_URL}/users`, {
             headers: { Authorization: `Bearer ${ACCESS_TOKEN}` }
         });
 
-        const users = response.data;
-        if (!Array.isArray(users)) {
-            throw new Error("Invalid response: Expected an array of users");
+
+        const usersObject = response.data.users;
+        if (!usersObject || typeof usersObject !== 'object') {
+            throw new Error("Invalid response: Expected an object of users");
         }
 
-        // Fetch post counts concurrently
+        const users = Object.entries(usersObject).map(([id, username]) => ({
+            id,
+            username
+        }));
+
         const userPostCounts = await Promise.all(
             users.map(async (user) => {
-                if (!user.id || !user.username) {
-                    return { id: user.id || "unknown", username: user.username || "unknown", postCount: 0 };
-                }
-
                 try {
                     const { data: posts } = await axios.get(`${BASE_URL}/users/${user.id}/posts`, {
                         headers: { Authorization: `Bearer ${ACCESS_TOKEN}` }
@@ -41,12 +37,11 @@ export const getTopUsers = async (req, res) => {
                     };
                 } catch (error) {
                     console.error(`Error fetching posts for ${user.username}:`, error.message);
-                    return { id: user.id, username: user.username, postCount: 0 }; 
+                    return { id: user.id, username: user.username, postCount: 0 };
                 }
             })
         );
 
-        // Sort and return top 5 users by post count
         const topUsers = userPostCounts.sort((a, b) => b.postCount - a.postCount).slice(0, 5);
         return res.json(topUsers);
 
@@ -59,3 +54,4 @@ export const getTopUsers = async (req, res) => {
         });
     }
 };
+
